@@ -15,12 +15,14 @@
 #define Ki 10
 #define Kd 7
 
-unsigned long tempo;
-int PID, erroAnterior, velMax = valIn + 4*(Kp+Ki+Kd);
+unsigned long t1, t2;
+int P, PID, erroAnterior, velMax = valIn + 4*(Kp+Ki+Kd);
 
 byte erro(){
   int DD = analogRead(dd), D = analogRead(d),
       C = analogRead(c), E = analogRead(e), EE = analogRead(ee);
+  if(DD > limite && D > limite && C > limite && E > limite && EE > limite) return 6;
+  if(DD < limite && D < limite && C < limite && E < limite && EE < limite) return 5;
   if(DD < limite && D < limite && C < limite && E < limite && EE > limite) return 4;
   if(DD < limite && D < limite && C < limite && E > limite && EE > limite) return 3;
   if(DD < limite && D < limite && C < limite && E > limite && EE < limite) return 2;
@@ -33,21 +35,36 @@ byte erro(){
 }
 
 void calcularPID(){
-  int P = erro(),
-      I = I + P,
-      D = erroAnterior - P;
-  PID = (Kp*P)+(Ki*I)+(Kd*D);
-  erroAnterior = P;
+  P = erro();
+  if(P < 5){
+    int I = I + P,
+        D = erroAnterior - P;
+    PID = (Kp*P)+(Ki*I)+(Kd*D);
+    erroAnterior = P;
+  }
 }
 
 void setup() {
   pinMode(M1_F, OUTPUT); pinMode(M1_T, OUTPUT);
   pinMode(M2_F, OUTPUT); pinMode(M2_T,OUTPUT);
-  tempo = millis();
+  t1 = millis(); t2 = millis();
 }
 
 void loop() {
   calcularPID();
+  if(P == 6) pararMotor();
+  if(P == 5){
+    PID = 0; mover();
+  }
+  if(P < 5) mover();
+}
+
+void pararMotor(){
+  digitalWrite(M1_F, LOW);
+  digitalWrite(M2_F, LOW);
+}
+
+void mover(){
   int velM1 = valIn + PID,
       velM2 = valIn - PID;
       
@@ -60,8 +77,14 @@ void loop() {
   /********** PWM pelo tempo  *********/
    /* velM1 = map(velM1, 0, velMax, 0, tempoMax);
     velM2 = map(velM2, 0, velMax, 0, tempoMax);
-    if(millis()-tempo < velM1) digitalWrite(M1_F, HIGH);
-      else if(millis()-tempo < tempoMax) digitalWrite(M1_F, LOW);
-    if(millis()-tempo < velM2) digitalWrite(M2_F, HIGH);
-      else if(millis()-tempo < tempoMax) digitalWrite(M2_F, LOW);*/
+    if(millis()-t1 < velM1) digitalWrite(M1_F, HIGH);
+      else if(millis()-t1 < tempoMax){
+        digitalWrite(M1_F, LOW);
+        t1 = millis();
+      }
+    if(millis()-t2 < velM2) digitalWrite(M2_F, HIGH);
+      else if(millis()-t2 < tempoMax){
+        digitalWrite(M2_F, LOW);
+        t2 = millis();
+      }*/
 }
