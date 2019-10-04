@@ -7,9 +7,9 @@
 #define M1_T  6
 #define M2_T  10
 #define M2_F  11
-#define limite 730
+#define limite 580
 #define valIn 100
-#define tempoMax 100
+#define tempoMax 70
 
 #define Kp 60
 #define Ki 30
@@ -51,6 +51,14 @@ void setup() {
   pinMode(M1_F, OUTPUT); pinMode(M1_T, OUTPUT);
   pinMode(M2_F, OUTPUT); pinMode(M2_T,OUTPUT);
   t1 = millis(); t2 = millis(); Serial.begin(9600);
+  while(1){
+  analogWrite(M1_F, 90);
+  analogWrite(M2_F, 91); //Torque máximo para partida
+  delay(100);
+  analogWrite(M1_F, 0);
+  analogWrite(M2_F, 0); //Torque máximo para partida
+  delay(100);
+  }
 }
 
 void loop() {
@@ -68,11 +76,10 @@ void pararMotor(){
 }
 
 void mover(){
-  /*analogWrite(M1_F, 255);
-  analogWrite(M2_F, 255); //Torque máximo para partida zap
+  /* zap
   */
-  int velM1 = valIn + PID,
-      velM2 = valIn - PID;
+  int velM1 = valIn + (2*PID/valIn),
+      velM2 = valIn - (2*PID/valIn);
       
       
   /*********** PWM Arduino ************/ 
@@ -85,9 +92,9 @@ void mover(){
     /*velM1 = map(velM1, 0, velMax, 0, tempoMax);
     velM2 = map(velM2, 0, velMax, 0, tempoMax);
     if(millis()-t1 < velM1) analogWrite(M1_F, 255);
-      else if(millis()-t1 < tempoMax) analogWrite(M1_F, 0);
-    if(millis()-t1>tempoMax) t1 = millis();
+      else if(millis()-t1 > velM1) analogWrite(M1_F, 0);
+    if(millis()-t1 > tempoMax) t1 = millis();
     if(millis()-t2 < velM2) analogWrite(M2_F, 255);
-      else if(millis()-t2 < tempoMax) analogWrite(M2_F, 0);
+      else if(millis()-t2 > velM2) analogWrite(M2_F, 0);
     if(millis()-t2>tempoMax) t2 = millis();*/
 }
