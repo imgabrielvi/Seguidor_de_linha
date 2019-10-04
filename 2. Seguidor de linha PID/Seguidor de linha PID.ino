@@ -8,15 +8,15 @@
 #define M2_T  10
 #define M2_F  11
 #define limite 580
-#define valIn 100
-#define tempoMax 70
+#define valIn 120       //0-255
+#define tempoMax 25
 
-#define Kp 60
-#define Ki 30
-#define Kd 20
+#define Kp 600
+#define Ki 300
+#define Kd 500
 
 unsigned long t1, t2;
-int P, PID, erroAnterior, velMax = valIn + 4*(Kp+Ki+Kd);
+int P, PID, erroAnterior, velMax = 2*valIn, cont = 0;
 
 int erro(){
   int DD = analogRead(dd), D = analogRead(d),
@@ -38,30 +38,23 @@ int erro(){
 }
 
 void calcularPID(){
-  P = erro(); Serial.print("     "); Serial.println(P);
+  P = erro(); Serial.print("     - Erro: "); Serial.print(P);
   if(P < 5){
     int I = I + P,
-        D = erroAnterior - P;
+        D = P - erroAnterior;
     PID = (Kp*P)+(Ki*I)+(Kd*D);
     erroAnterior = P;
   }
+  else cont = 0;
 }
 
-void setup() {
+void setup(){
   pinMode(M1_F, OUTPUT); pinMode(M1_T, OUTPUT);
   pinMode(M2_F, OUTPUT); pinMode(M2_T,OUTPUT);
   t1 = millis(); t2 = millis(); Serial.begin(9600);
-  while(1){
-  analogWrite(M1_F, 90);
-  analogWrite(M2_F, 91); //Torque máximo para partida
-  delay(100);
-  analogWrite(M1_F, 0);
-  analogWrite(M2_F, 0); //Torque máximo para partida
-  delay(100);
-  }
 }
 
-void loop() {
+void loop(){
   calcularPID();
   if(P == 6) pararMotor();
   if(P == 5){
@@ -71,24 +64,39 @@ void loop() {
 }
 
 void pararMotor(){
-  digitalWrite(M1_F, LOW);
-  digitalWrite(M2_F, LOW); //while(1);
+  digitalWrite(M1_F, LOW); Serial.println();
+  digitalWrite(M2_F, LOW); cont = 0;
 }
 
 void mover(){
-  /* zap
-  */
-  int velM1 = valIn + (2*PID/valIn),
-      velM2 = valIn - (2*PID/valIn);
-      
-      
+  if(!cont){
+    analogWrite(M1_F, 255);
+    analogWrite(M2_F, 255); //Torque máximo para partida
+    delay(4); cont++;
+  }
+  //PID = PID+4*(Kp+Kd+Ki);
+  PID = map(PID, 0, 4*(Kp+Kd+Ki), 0, valIn);
+  int velM1, velM2;
+  if(!PID){
+    velM1 = valIn;
+    velM2 = valIn;
+  }
+  else{
+    velM1 = valIn + PID;
+    velM2 = valIn - PID;
+  }
+  
   /*********** PWM Arduino ************/ 
-    velM1 = map(velM1, 0, velMax, 0, 255);
-    velM2 = map(velM2, 0, velMax, 0, 255);
+    velM1 = map(velM1, 0, velMax, 0, valIn);
+    velM2 = map(velM2, 0, velMax, 0, valIn);
     analogWrite(M1_F, velM1);
     analogWrite(M2_F, velM2);
+    Serial.print("  -  PID: "); Serial.print(PID);  
+    Serial.print("  -  velM1: "); Serial.print(velM1);
+    Serial.print("  -  velM2: "); Serial.println(velM2);
+    Serial.println();
 
-  /********** PWM pelo tempo  *********/
+  /********** PWM pelo tempo s/ delay *********/
     /*velM1 = map(velM1, 0, velMax, 0, tempoMax);
     velM2 = map(velM2, 0, velMax, 0, tempoMax);
     if(millis()-t1 < velM1) analogWrite(M1_F, 255);
@@ -96,5 +104,19 @@ void mover(){
     if(millis()-t1 > tempoMax) t1 = millis();
     if(millis()-t2 < velM2) analogWrite(M2_F, 255);
       else if(millis()-t2 > velM2) analogWrite(M2_F, 0);
-    if(millis()-t2>tempoMax) t2 = millis();*/
+    if(millis()-t2>tempoMax) t2 = millis();
+    Serial.print("  -  PID: "); Serial.print(PID);  
+    Serial.print("  -  velM1: "); Serial.print(velM1);
+    Serial.print("  -  velM2: "); Serial.println(velM2);
+    Serial.println();*/
+
+    /********** PWM pelo tempo c/ delay *********/
+    /*velM1 = map(velM1, 0, velMax, 0, tempoMax) - P;
+    velM2 = map(velM2, 0, velMax, 0, tempoMax) - P;
+    analogWrite(M1_F, 255); delay(velM1); analogWrite(M1_F, 0);
+    analogWrite(M2_F, 255); delay(velM2); analogWrite(M2_F, 0);
+    Serial.print("  -  PID: "); Serial.print(PID);  
+    Serial.print("  -  velM1: "); Serial.print(velM1);
+    Serial.print("  -  velM2: "); Serial.println(velM2);
+    Serial.println();*/
 }
