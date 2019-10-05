@@ -1,22 +1,29 @@
-#define dd    A0
-#define d     A1
-#define c     A2
-#define e     A3
-#define ee    A4
-#define M1_F  5
-#define M1_T  6
-#define M2_T  10
-#define M2_F  11
-#define limite 580
-#define valIn 120       //0-255
-#define tempoMax 25
+//================== Código para Servomotor ===================//
+#include <Servo.h>
+
+#define dd  A11
+#define d   A12
+#define c   A13
+#define e   A14
+#define ee  A15
+
+#define M1  6
+#define M2  9
+
+#define limite 590
+#define valIn 1500       //0-255
+#define vel 200
 
 #define Kp 600
-#define Ki 300
-#define Kd 500
+#define Ki 200   // A soma desses valores não pode
+#define Kd 300   //ultrapassar 11000
+
+Servo direita, esquerda;
 
 unsigned long t1, t2;
-int P, PID, erroAnterior, velMax = 2*valIn, cont = 0;
+int P, erroAnterior, velMax = valIn + 4*(Kp+Ki+Kd) + vel, velMin = valIn - 4*(Kp+Ki+Kd) - vel;
+bool cont;
+long PID;
 
 int erro(){
   int DD = analogRead(dd), D = analogRead(d),
@@ -38,20 +45,18 @@ int erro(){
 }
 
 void calcularPID(){
-  P = erro(); Serial.print("     - Erro: "); Serial.print(P);
+  P = erro(); Serial.print("      Erro: "); Serial.print(P);
   if(P < 5){
     int I = I + P,
         D = P - erroAnterior;
     PID = (Kp*P)+(Ki*I)+(Kd*D);
     erroAnterior = P;
   }
-  else cont = 0;
 }
 
 void setup(){
-  pinMode(M1_F, OUTPUT); pinMode(M1_T, OUTPUT);
-  pinMode(M2_F, OUTPUT); pinMode(M2_T,OUTPUT);
-  t1 = millis(); t2 = millis(); Serial.begin(9600);
+  Serial.begin(9600);
+  direita.attach(M1); esquerda.attach(M2);
 }
 
 void loop(){
@@ -64,59 +69,26 @@ void loop(){
 }
 
 void pararMotor(){
-  digitalWrite(M1_F, LOW); Serial.println();
-  digitalWrite(M2_F, LOW); cont = 0;
+  if(cont){
+    direita.writeMicroseconds(valIn); Serial.println();
+    esquerda.writeMicroseconds(valIn);
+  }
+  else{
+    direita.writeMicroseconds(valIn - vel); Serial.println();
+    esquerda.writeMicroseconds(valIn + vel); cont++;
+  }
 }
 
 void mover(){
-  if(!cont){
-    analogWrite(M1_F, 255);
-    analogWrite(M2_F, 255); //Torque máximo para partida
-    delay(4); cont++;
-  }
-  //PID = PID+4*(Kp+Kd+Ki);
-  PID = map(PID, 0, 4*(Kp+Kd+Ki), 0, valIn);
-  int velM1, velM2;
-  if(!PID){
-    velM1 = valIn;
-    velM2 = valIn;
-  }
-  else{
-    velM1 = valIn + PID;
-    velM2 = valIn - PID;
-  }
-  
-  /*********** PWM Arduino ************/ 
-    velM1 = map(velM1, 0, velMax, 0, valIn);
-    velM2 = map(velM2, 0, velMax, 0, valIn);
-    analogWrite(M1_F, velM1);
-    analogWrite(M2_F, velM2);
-    Serial.print("  -  PID: "); Serial.print(PID);  
-    Serial.print("  -  velM1: "); Serial.print(velM1);
-    Serial.print("  -  velM2: "); Serial.println(velM2);
-    Serial.println();
-
-  /********** PWM pelo tempo s/ delay *********/
-    /*velM1 = map(velM1, 0, velMax, 0, tempoMax);
-    velM2 = map(velM2, 0, velMax, 0, tempoMax);
-    if(millis()-t1 < velM1) analogWrite(M1_F, 255);
-      else if(millis()-t1 > velM1) analogWrite(M1_F, 0);
-    if(millis()-t1 > tempoMax) t1 = millis();
-    if(millis()-t2 < velM2) analogWrite(M2_F, 255);
-      else if(millis()-t2 > velM2) analogWrite(M2_F, 0);
-    if(millis()-t2>tempoMax) t2 = millis();
-    Serial.print("  -  PID: "); Serial.print(PID);  
-    Serial.print("  -  velM1: "); Serial.print(velM1);
-    Serial.print("  -  velM2: "); Serial.println(velM2);
-    Serial.println();*/
-
-    /********** PWM pelo tempo c/ delay *********/
-    /*velM1 = map(velM1, 0, velMax, 0, tempoMax) - P;
-    velM2 = map(velM2, 0, velMax, 0, tempoMax) - P;
-    analogWrite(M1_F, 255); delay(velM1); analogWrite(M1_F, 0);
-    analogWrite(M2_F, 255); delay(velM2); analogWrite(M2_F, 0);
-    Serial.print("  -  PID: "); Serial.print(PID);  
-    Serial.print("  -  velM1: "); Serial.print(velM1);
-    Serial.print("  -  velM2: "); Serial.println(velM2);
-    Serial.println();*/
+  cont = 0;
+  //PID = map(PID, 0, 4*(Kp+Kd+Ki), 0, valIn/3);
+  long velM1, velM2;
+  velM1 = valIn + vel - PID;
+  velM2 = valIn - vel - PID;
+  direita.writeMicroseconds(velM1);
+  esquerda.writeMicroseconds(velM2);
+  Serial.print("  -  PID: "); Serial.print(PID);  
+  Serial.print("  -  velM1: "); Serial.print(velM1);
+  Serial.print("  -  velM2: "); Serial.println(velM2);
+  Serial.println();
 }
